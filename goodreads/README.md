@@ -1,25 +1,23 @@
-# Outlier Detection Analysis on goodreads.csv
+# Dataset Analysis
 
-## Analysis Overview
-The analysis function `outlier_detection` was applied to the dataset `goodreads.csv` to identify anomalies within the data. This function aims to uncover data points that deviate significantly from the norm, which can indicate potential errors, outliers, or noteworthy trends.
+Error generating narrative: HTTPSConnectionPool(host='aiproxy.sanand.workers.dev', port=443): Read timed out. (read timeout=10)
 
-## Results Summary
-- **Number of Anomalies Detected:** 13
-- **Total Number of Samples Analyzed:** 100
-
-## Insights from Results
-The detection of 13 anomalies from a total of 100 samples suggests that approximately 13% of the data points exhibit unusual behavior or characteristics that differ from the rest of the dataset. 
-
-## Description of Insights
-The identification of outliers may point towards:
-- Potential measurement errors in the data collection process.
-- Unique cases that could warrant further investigation, such as unusual ratings, publication dates, or user interactions.
-- Certain trends that might not be captured by the majority of the data but are significant in niche cases.
-
-## Implications of Findings
-The presence of outliers has several implications:
-- **Data Quality Assessment:** The detection of anomalies may prompt a review of data collection methodologies to ensure accuracy and reliability.
-- **Further Investigation:** Understanding the nature of these outliers can lead to deeper insights about user behavior, popular trends, or specific titles that gain unusual attention.
-- **Modeling Impact:** If the data is used for predictive modeling, outliers could skew results, hence necessitating methods such as mitigation strategies or refinement of the dataset before training models.
-
-Overall, the anomaly detection analysis provides a valuable perspective on the dataset, indicating areas for quality improvement and promising insights for further exploration.
+## Visualizations
+![average_rating_distribution.png](average_rating_distribution.png)
+![best_book_id_distribution.png](best_book_id_distribution.png)
+![books_count_distribution.png](books_count_distribution.png)
+![book_id_distribution.png](book_id_distribution.png)
+![correlation_heatmap.png](correlation_heatmap.png)
+![goodreads_book_id_distribution.png](goodreads_book_id_distribution.png)
+![isbn13_distribution.png](isbn13_distribution.png)
+![kmeans_clustering.png](kmeans_clustering.png)
+![original_publication_year_distribution.png](original_publication_year_distribution.png)
+![ratings_1_distribution.png](ratings_1_distribution.png)
+![ratings_2_distribution.png](ratings_2_distribution.png)
+![ratings_3_distribution.png](ratings_3_distribution.png)
+![ratings_4_distribution.png](ratings_4_distribution.png)
+![ratings_5_distribution.png](ratings_5_distribution.png)
+![ratings_count_distribution.png](ratings_count_distribution.png)
+![work_id_distribution.png](work_id_distribution.png)
+![work_ratings_count_distribution.png](work_ratings_count_distribution.png)
+![work_text_reviews_count_distribution.png](work_text_reviews_count_distribution.png)
