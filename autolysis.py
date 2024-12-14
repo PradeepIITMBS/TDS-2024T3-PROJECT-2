@@ -9,24 +9,33 @@
 #   "ipykernel",
 #   "openai",
 #   "numpy",
+#   "scipy",
+#   "scikit-learn",
 # ]
 # ///
 
-import os
-import sys
+import os, sys, time
 import pandas as pd
+import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 import httpx
 import chardet
 from pathlib import Path
 import asyncio
+from scipy import stats
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.cluster import KMeans
+from sklearn.ensemble import IsolationForest
 
+start_time=time.time()
 # Constants
 API_URL = "https://aiproxy.sanand.workers.dev/openai/v1/chat/completions"
 
-# Ensure token is retrieved from environment variable
+# Utility Functions
 def get_token():
+    """Retrieve the API token from environment variables."""
     try:
         return os.environ["AIPROXY_TOKEN"]
     except KeyError:
@@ -34,7 +43,7 @@ def get_token():
         sys.exit(1)
 
 async def load_data(file_path):
-    """Load CSV data with encoding detection."""
+    """Load CSV file with automatic encoding detection."""
     if not os.path.isfile(file_path):
         print(f"Error: File '{file_path}' not found.")
         sys.exit(1)
@@ -46,52 +55,74 @@ async def load_data(file_path):
     return pd.read_csv(file_path, encoding=encoding)
 
 async def async_post_request(headers, data):
-    """Async function to make HTTP requests."""
+    """Perform an asynchronous HTTP POST request."""
     async with httpx.AsyncClient() as client:
         response = await client.post(API_URL, headers=headers, json=data, timeout=30.0)
         response.raise_for_status()
         return response.json()['choices'][0]['message']['content']
 
-async def generate_narrative(analysis, token, file_path):
-    """Generate narrative using LLM."""
-    headers = {
-        'Authorization': f'Bearer {token}',
-        'Content-Type': 'application/json'
+# Data Analysis Functions
+def perform_advanced_statistical_analysis(df):
+    """Perform advanced statistical analyses including normality tests, PCA, and clustering."""
+    results = {}
+    numeric_df = df.select_dtypes(include=['number'])
+    
+    # Normality Tests
+    normality_tests = {
+        col: stats.shapiro(df[col].dropna())[1] > 0.05 for col in numeric_df.columns
     }
+    results['normality'] = normality_tests
 
-    # Prepare the prompt for narrative generation
-    prompt = (
-        f"You are a data analyst. Provide a detailed narrative based on the following data analysis results for the file '{file_path.name}':\n\n"
-        f"Column Names & Types: {list(analysis['summary'].keys())}\n\n"
-        f"Summary Statistics: {analysis['summary']}\n\n"
-        f"Missing Values: {analysis['missing_values']}\n\n"
-        f"Correlation Matrix: {analysis['correlation']}\n\n"
-        "Based on this information, please provide insights into any trends, outliers, anomalies, "
-        "or patterns you can detect. Suggest additional analyses that could provide more insights, such as clustering, anomaly detection, etc."
-    )
+    # Outlier Detection
+    if not numeric_df.empty:
+        scaler = StandardScaler()
+        scaled_data = scaler.fit_transform(numeric_df)
+        iso_forest = IsolationForest(contamination=0.1, random_state=42)
+        outliers = iso_forest.fit_predict(scaled_data)
+        results['outliers'] = np.where(outliers == -1)[0].tolist()
 
-    data = {
-        "model": "gpt-4o-mini",
-        "messages": [{"role": "user", "content": prompt}]
-    }
+    # PCA
+    if numeric_df.shape[1] > 1:
+        pca = PCA()
+        pca.fit(scaled_data)
+        results['pca'] = {
+            'explained_variance_ratio': pca.explained_variance_ratio_.tolist(),
+            'cumulative_variance': np.cumsum(pca.explained_variance_ratio_).tolist()
+        }
 
-    return await async_post_request(headers, data)
+    # Clustering
+    inertias = []
+    for k in range(1, min(6, len(numeric_df.columns) + 1)):
+        kmeans = KMeans(n_clusters=k, random_state=42)
+        kmeans.fit(scaled_data)
+        inertias.append(kmeans.inertia_)
+    results['clustering'] = inertias
+
+    return results
 
 async def analyze_data(df, token):
-    """Use LLM to suggest and perform data analysis."""
+    """Perform basic and advanced data analysis."""
     if df.empty:
         print("Error: Dataset is empty.")
         sys.exit(1)
 
-    # Prepare the prompt to ask the LLM for analysis suggestions
+    numeric_df = df.select_dtypes(include=['number'])
+    basic_analysis = {
+        'summary': df.describe(include='all').to_dict(),
+        'missing_values': df.isnull().sum().to_dict(),
+        'correlation': numeric_df.corr().to_dict() if not numeric_df.empty else {}
+    }
+
+    advanced_analysis = perform_advanced_statistical_analysis(df)
+    analysis = {**basic_analysis, **advanced_analysis}
+
     prompt = (
-        f"You are a data analyst. Given the following dataset information, provide an analysis plan:\n\n"
-        f"Columns: {list(df.columns)}\n"
-        f"Data Types: {df.dtypes.to_dict()}\n"
-        f"First 5 rows of data:\n{df.head()}\n\n"
-        "Please suggest useful data analysis techniques, such as correlation analysis, regression, anomaly detection, clustering, or others."
+        "You are a senior data scientist. Provide an analysis of the following results:\n\n"
+        f"Basic Summary: {basic_analysis['summary']}\n\n"
+        f"Advanced Analysis: {advanced_analysis}\n\n"
+        "Suggest further analysis techniques and insights based on these results."
     )
-    
+
     headers = {
         'Authorization': f'Bearer {token}',
         'Content-Type': 'application/json'
@@ -101,111 +132,71 @@ async def analyze_data(df, token):
         "messages": [{"role": "user", "content": prompt}]
     }
 
-    # Requesting analysis suggestions from the LLM
     suggestions = await async_post_request(headers, data)
-    print(f"LLM Suggestions: {suggestions}")
-
-    # Basic analysis (summary statistics, missing values, correlations)
-    numeric_df = df.select_dtypes(include=['number'])
-    analysis = {
-        'summary': df.describe(include='all').to_dict(),
-        'missing_values': df.isnull().sum().to_dict(),
-        'correlation': numeric_df.corr().to_dict() if not numeric_df.empty else {}
-    }
-    print("Data analysis complete.")
     return analysis, suggestions
 
-async def visualize_data(df, output_dir, analysis):
+# Visualization
+def visualize_data(df, output_dir, analysis):
     """Generate and save visualizations."""
-    sns.set(style="whitegrid")
     numeric_columns = df.select_dtypes(include=['number']).columns
-
-    # Ensure output directory exists
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Counter for distribution plots
-    distribution_count = 0
-
-    # Distribution plots (limit to 3)
-    for column in numeric_columns:
-        if distribution_count >= 3:  # Stop after 3 plots
-            break
-        
-        plt.figure(figsize=(6, 6))
-        sns.histplot(df[column].dropna(), kde=True)
-        plt.title(f'Distribution of {column}')
-        file_name = output_dir / f'{column}_distribution.png'
-        plt.savefig(file_name, dpi=100)
-        print(f"Saved distribution plot: {file_name}")
-        plt.close()
-        
-        distribution_count += 1
-
-    # Correlation heatmap (always generate)
-    if not numeric_columns.empty:
-        plt.figure(figsize=(6, 6))
-        corr = df[numeric_columns].corr()
-        sns.heatmap(corr, annot=True, cmap='coolwarm', square=True)
-        plt.title('Correlation Heatmap')
-        file_name = output_dir / 'correlation_heatmap.png'
-        plt.savefig(file_name, dpi=100)
-        print(f"Saved correlation heatmap: {file_name}")
+    for col in numeric_columns[:3]:
+        plt.figure()
+        sns.histplot(df[col].dropna(), kde=True)
+        plt.title(f"Distribution of {col}")
+        plt.savefig(output_dir / f"{col}_distribution.png")
         plt.close()
 
-async def save_narrative_with_images(narrative, output_dir):
-    """Save narrative to README.md and embed image links."""
-    readme_path = output_dir / 'README.md'
-    image_links = "\n".join(
-        [f"![{img.name}]({img.name})" for img in output_dir.glob('*.png')]
+    if len(numeric_columns) > 1:
+        plt.figure(figsize=(10, 8))
+        sns.heatmap(df[numeric_columns].corr(), annot=True, cmap='coolwarm', square=True)
+        plt.title("Correlation Heatmap")
+        plt.savefig(output_dir / "correlation_heatmap.png")
+        plt.close()
+
+# Narrative Generation
+async def generate_narrative(analysis, token, file_path):
+    """Generate narrative based on analysis."""
+    prompt = (
+        f"You are a data scientist. Generate a report for the dataset {file_path.name}:\n\n"
+        f"Analysis Results: {analysis}\n\n"
+        "Provide insights, trends, and recommendations."
     )
-    with open(readme_path, 'w') as f:
-        f.write(narrative + "\n\n" + image_links)
-    print(f"Narrative successfully written to {readme_path}")
+    headers = {
+        'Authorization': f'Bearer {token}',
+        'Content-Type': 'application/json'
+    }
+    data = {
+        "model": "gpt-4o-mini",
+        "messages": [{"role": "user", "content": prompt}]
+    }
+    return await async_post_request(headers, data)
 
+# Main Workflow
 async def main(file_path):
-    print("Starting autolysis process...")
-
-    # Ensure input file exists
     file_path = Path(file_path)
     if not file_path.is_file():
         print(f"Error: File '{file_path}' does not exist.")
         sys.exit(1)
 
-    # Load token
     token = get_token()
-
-    # Load dataset
     df = await load_data(file_path)
-    print("Dataset loaded successfully.")
-
-    # Analyze data with LLM insights
-    print("Analyzing data...")
     analysis, suggestions = await analyze_data(df, token)
-    print(f"LLM Analysis Suggestions: {suggestions}")
 
-    # Create output directory
-    output_dir = Path(file_path.stem)  # Create a directory named after the dataset
-    output_dir.mkdir(exist_ok=True)
+    output_dir = Path(file_path.stem)
+    visualize_data(df, output_dir, analysis)
 
-    # Generate visualizations with LLM suggestions
-    print("Generating visualizations...")
-    await visualize_data(df, output_dir, analysis)
-
-    # Generate narrative
-    print("Generating narrative using LLM...")
     narrative = await generate_narrative(analysis, token, file_path)
+    with open(output_dir / "README.md", "w") as f:
+        f.write(narrative)
 
-    if narrative != "Narrative generation failed due to an error.":
-        await save_narrative_with_images(narrative, output_dir)
-    else:
-        print("Narrative generation failed. Skipping README creation.")
-
-    print("Autolysis process completed.")
+    print("Analysis complete.")
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print("Usage: python autolysis.py <file_path>")
         sys.exit(1)
-    
-    # Run the main function in an event loop
+
     asyncio.run(main(sys.argv[1]))
+    print(time.time()-start_time)
