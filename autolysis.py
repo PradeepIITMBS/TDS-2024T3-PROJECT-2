@@ -19,9 +19,6 @@ from charset_normalizer import detect
 import requests
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
-import time
-
-start_time=time.time()
 
 # Ensure the environment variable for AI Proxy token is set
 AIPROXY_TOKEN = os.environ["AIPROXY_TOKEN"]
@@ -49,21 +46,15 @@ def analyze_dataset(file_path):
     # Perform generic analysis
     analysis = {
         "columns": list(df.columns),
-        "dtypes": {col: str(df[col].dtype) for col in df.columns},
-        "missing_values": {col: df[col].isnull().sum() for col in df.columns}
+        "dtypes": df.dtypes.apply(str).to_dict(),
+        "summary_stats": df.describe(include='all').to_dict(),
+        "missing_values": df.isnull().sum().to_dict()
     }
-    try:
-        numeric_summary = df.describe(include=['number']).to_dict()
-    except ValueError:
-        numeric_summary = {}
-
-    analysis["summary_stats"] = numeric_summary
 
     # Additional analysis for categorical data
     categorical_columns = df.select_dtypes(include=['object']).columns
-    if len(categorical_columns) > 0:
-        for col in categorical_columns[:5]:  # Limit analysis to top 5 categorical columns
-            analysis[f"{col}_value_counts"] = df[col].value_counts().to_dict()
+    for col in categorical_columns:
+        analysis[f"{col}_value_counts"] = df[col].value_counts().to_dict()
 
     return df, analysis
 
@@ -72,12 +63,11 @@ def perform_clustering(df, output_dir):
     numeric_columns = df.select_dtypes(include=['number']).columns
     if len(numeric_columns) > 1:
         scaler = StandardScaler()
-        sampled_data = df[numeric_columns].dropna().sample(frac=0.1, random_state=42)
-        scaled_data = scaler.fit_transform(sampled_data)
-        kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
+        scaled_data = scaler.fit_transform(df[numeric_columns].dropna())
+        kmeans = KMeans(n_clusters=3, random_state=42)
         clusters = kmeans.fit_predict(scaled_data)
 
-        df.loc[sampled_data.index, 'Cluster'] = clusters
+        df['Cluster'] = pd.Series(clusters, index=df[numeric_columns].dropna().index)
         plt.figure(figsize=(5.12, 5.12))  # Adjusted for 512x512 px
         sns.scatterplot(x=df[numeric_columns[0]], y=df[numeric_columns[1]], hue='Cluster', palette='viridis', data=df)
         plt.title("KMeans Clustering")
@@ -93,7 +83,7 @@ def generate_visualizations(df, output_dir):
 
     # Generate a correlation heatmap if applicable
     if len(numeric_columns) > 1:
-        corr = df[numeric_columns].corr().round(2)
+        corr = df[numeric_columns].corr()
         plt.figure(figsize=(5.12, 5.12))  # Adjusted for 512x512 px
         sns.heatmap(corr, annot=True, cmap="coolwarm")
         plt.title("Correlation Heatmap")
@@ -107,7 +97,7 @@ def generate_visualizations(df, output_dir):
     if len(numeric_columns) > 0:
         most_variable_col = df[numeric_columns].std().idxmax()
         plt.figure(figsize=(5.12, 5.12))  # Adjusted for 512x512 px
-        sns.histplot(df[most_variable_col], kde=True, bins=30)
+        sns.histplot(df[most_variable_col], kde=True)
         plt.title(f"Distribution of {most_variable_col}")
         plt.xlabel(most_variable_col)
         plt.ylabel("Frequency")
@@ -200,8 +190,4 @@ def main():
         print(f"File {file_path} not found!")
 
 if __name__ == "__main__":
-    try:
-        main()
-    finally:
-        end_time=time.time()
-        print(end_time-start_time)
+    main()
