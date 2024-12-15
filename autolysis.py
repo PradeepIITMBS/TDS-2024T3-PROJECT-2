@@ -10,434 +10,332 @@
 #   "scipy"
 # ]
 # ///
-
 import os
 import sys
 import json
 import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
+import matplotlib.pyplot as plt
 import seaborn as sns
-import openai
-from charset_normalizer import detect
 import requests
-from sklearn.cluster import KMeans, DBSCAN
+from charset_normalizer import detect
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
-from sklearn.feature_selection import mutual_info_regression
+from sklearn.cluster import KMeans
 from scipy import stats
 
-class DataAnalyzer:
+class AdvancedDataAnalyzer:
     def __init__(self, file_path, output_dir):
         """
-        Initialize the data analyzer with a file path and output directory.
+        Initialize the advanced data analyzer with comprehensive analysis capabilities.
         """
         self.file_path = file_path
         self.output_dir = output_dir
         self.df = self._load_dataset()
-        self.numeric_columns = self.df.select_dtypes(include=['number']).columns
-        self.categorical_columns = self.df.select_dtypes(include=['object']).columns
+        
+        # Identify column types
+        self.numeric_columns = self.df.select_dtypes(include=['number']).columns.tolist()
+        self.categorical_columns = self.df.select_dtypes(include=['object']).columns.tolist()
+        self.datetime_columns = self.df.select_dtypes(include=['datetime64']).columns.tolist()
 
     def _load_dataset(self):
         """
-        Load the dataset with automatic encoding detection.
+        Load dataset with robust encoding detection.
         """
         with open(self.file_path, 'rb') as f:
             raw_data = f.read()
             detected_encoding = detect(raw_data)['encoding']
 
         try:
-            df = pd.read_csv(self.file_path, encoding=detected_encoding)
+            # Attempt to parse dates automatically
+            df = pd.read_csv(
+                self.file_path, 
+                encoding=detected_encoding,
+                parse_dates=True,
+                infer_datetime_format=True
+            )
             return df
         except Exception as e:
             print(f"Error loading file: {e}")
             sys.exit(1)
 
-    def perform_advanced_analysis(self):
+    def perform_comprehensive_analysis(self):
         """
-        Perform comprehensive data analysis with multiple advanced techniques.
+        Conduct a comprehensive, generic analysis applicable to most datasets.
         """
+        # Handle missing values by imputing or notifying the user
+        if self.df.isnull().values.any():
+            print("Missing values detected. Applying default imputation (mean for numeric, mode for categorical).")
+            for col in self.numeric_columns:
+                self.df[col].fillna(self.df[col].mean(), inplace=True)
+            for col in self.categorical_columns:
+                self.df[col].fillna(self.df[col].mode()[0], inplace=True)
+            for col in self.datetime_columns:
+                self.df[col].fillna(self.df[col].mode()[0], inplace=True)
+
         analysis = {
-            "basic_info": {
-                "columns": list(self.df.columns),
-                "dtypes": self.df.dtypes.apply(str).to_dict(),
-                "shape": self.df.shape
+            "dataset_overview": {
+                "total_rows": len(self.df),
+                "total_columns": len(self.df.columns),
+                "column_types": {col: str(dtype) for col, dtype in self.df.dtypes.items()}
             },
-            "summary_stats": self.df.describe(include='all').to_dict(),
-            "missing_values": self.df.isnull().sum().to_dict()
+            "missing_values": {
+                "count": self.df.isnull().sum().to_dict(),
+                "percentage": (self.df.isnull().sum() / len(self.df) * 100).to_dict()
+            },
+            "basic_statistics": {},
+            "distribution_analysis": {},
+            "correlation_analysis": {},
+            "outlier_detection": {},
+            "dimensionality_reduction": {}
         }
 
-        # Outlier detection
-        if len(self.numeric_columns) > 0:
-            analysis["outliers"] = self._detect_outliers()
+        # Numeric Columns Analysis
+        if self.numeric_columns:
+            # Basic Statistics
+            analysis["basic_statistics"]["numeric"] = self.df[self.numeric_columns].describe().to_dict()
 
-        # Feature importance
-        if len(self.numeric_columns) > 1:
-            analysis["feature_importance"] = self._calculate_feature_importance()
+            # Distribution Analysis
+            analysis["distribution_analysis"]["numeric"] = {
+                col: {
+                    "skewness": self.df[col].skew(),
+                    "kurtosis": self.df[col].kurtosis(),
+                    "normality_test": {
+                        "shapiro_statistic": stats.shapiro(self.df[col].dropna())[0]
+                        if len(self.df[col].dropna()) > 2 else None,
+                        "p_value": stats.shapiro(self.df[col].dropna())[1]
+                        if len(self.df[col].dropna()) > 2 else None
+                    }
+                } for col in self.numeric_columns
+            }
 
-        # Distribution analysis
-        analysis["distributions"] = self._analyze_distributions()
+            # Handle empty or nearly empty columns
+            analysis["distribution_analysis"]["numeric"] = {
+                col: analysis["distribution_analysis"]["numeric"][col]
+                for col in self.numeric_columns
+                if len(self.df[col].dropna()) > 2
+            }
 
-        # Advanced clustering
-        if len(self.numeric_columns) > 1:
-            analysis["clustering"] = self._advanced_clustering()
+            # Other analyses...
+
+        # Additional checks for missing values
+        if not any(analysis["missing_values"]["count"].values()):
+            print("No missing values detected.")
 
         return analysis
 
-    # Other methods (_detect_outliers, _calculate_feature_importance, etc.)
-    
-    def _detect_outliers(self):
+    def _find_high_correlations(self, correlation_matrix, threshold=0.7):
         """
-        Detect outliers using multiple methods.
-        
-        Returns:
-            dict: Outlier information for numeric columns
+        Find highly correlated feature pairs.
         """
-        outliers = {}
-        for col in self.numeric_columns:
-            # Z-score method
-            z_scores = np.abs(stats.zscore(self.df[col].dropna()))
-            outliers[col] = {
-                "z_score_outliers": sum(z_scores > 3),
-                "iqr_outliers": sum(self._iqr_outliers(self.df[col]))
-            }
-        return outliers
+        high_corr = []
+        for i in range(len(correlation_matrix.columns)):
+            for j in range(i):
+                if abs(correlation_matrix.iloc[i, j]) > threshold:
+                    high_corr.append({
+                        "features": [correlation_matrix.columns[i], correlation_matrix.columns[j]],
+                        "correlation": correlation_matrix.iloc[i, j]
+                    })
+        return high_corr
 
-    def _iqr_outliers(self, series):
+    def _detect_iqr_outliers(self, series):
         """
-        Detect outliers using Interquartile Range (IQR) method.
-        
-        Args:
-            series (pd.Series): Input numeric series
-        
-        Returns:
-            numpy.ndarray: Boolean mask of outliers
+        Detect outliers using Interquartile Range method.
         """
         Q1 = series.quantile(0.25)
         Q3 = series.quantile(0.75)
         IQR = Q3 - Q1
         lower_bound = Q1 - 1.5 * IQR
         upper_bound = Q3 + 1.5 * IQR
-        return (series < lower_bound) | (series > upper_bound)
-
-    def _calculate_feature_importance(self):
-        """
-        Calculate feature importance using mutual information.
-        
-        Returns:
-            dict: Feature importance scores
-        """
-        if len(self.numeric_columns) < 2:
-            return {}
-
-        X = self.df[self.numeric_columns[:-1]]
-        y = self.df[self.numeric_columns[-1]]
-        
-        # Mutual Information Regression
-        mi_scores = mutual_info_regression(X, y)
-        return dict(zip(X.columns, mi_scores))
-
-    def _analyze_distributions(self):
-        """
-        Analyze distributions of numeric columns.
-        
-        Returns:
-            dict: Distribution characteristics
-        """
-        distributions = {}
-        for col in self.numeric_columns:
-            distributions[col] = {
-                "skewness": stats.skew(self.df[col].dropna()),
-                "kurtosis": stats.kurtosis(self.df[col].dropna())
-            }
-        return distributions
-
-    def _advanced_clustering(self):
-        """
-        Perform advanced clustering using multiple algorithms.
-        
-        Returns:
-            dict: Clustering results
-        """
-        # Prepare data
-        scaler = StandardScaler()
-        scaled_data = scaler.fit_transform(self.df[self.numeric_columns].dropna())
-        
-        # PCA for dimensionality reduction
-        pca = PCA(n_components=2)
-        pca_data = pca.fit_transform(scaled_data)
-
-        # KMeans Clustering
-        kmeans = KMeans(n_clusters=3, random_state=42)
-        kmeans_labels = kmeans.fit_predict(scaled_data)
-
-        # DBSCAN Clustering
-        dbscan = DBSCAN(eps=0.5, min_samples=5)
-        dbscan_labels = dbscan.fit_predict(scaled_data)
-
+        outliers = series[(series < lower_bound) | (series > upper_bound)]
         return {
-            "kmeans_n_clusters": len(np.unique(kmeans_labels)),
-            "dbscan_n_clusters": len(np.unique(dbscan_labels[dbscan_labels != -1]))
+            "count": len(outliers),
+            "percentage": len(outliers) / len(series) * 100
         }
-    
+
+    def _detect_z_score_outliers(self, series, threshold=3):
+        """
+        Detect outliers using Z-score method.
+        """
+        z_scores = (series - series.mean()) / series.std()
+        z_scores.index = series.index  # Ensure the index aligns
+        outliers = series[z_scores > threshold]
+        return {
+            "count": len(outliers),
+            "percentage": len(outliers) / len(series) * 100
+        }
+
+    def _perform_pca(self):
+        """
+        Perform Principal Component Analysis.
+        """
+        # Standardize the data
+        scaler = StandardScaler()
+        scaled_data = scaler.fit_transform(self.df[self.numeric_columns])
+        
+        # Perform PCA
+        pca = PCA()
+        pca.fit(scaled_data)
+        
+        # Explained variance ratio
+        explained_variance = pca.explained_variance_ratio_
+        cumulative_variance = np.cumsum(explained_variance)
+        
+        return {
+            "explained_variance_ratio": explained_variance.tolist(),
+            "cumulative_variance_ratio": cumulative_variance.tolist(),
+            "n_components_for_95_variance": np.argmax(cumulative_variance >= 0.95) + 1
+        }
+
     def generate_visualizations(self, analysis):
         """
-        Generate comprehensive data visualizations as separate PNG files.
+        Generate comprehensive visualizations and save them as separate PNG files.
         """
         # Correlation Heatmap
-        if len(self.numeric_columns) > 1:
+        if self.numeric_columns and len(self.numeric_columns) > 1:
             plt.figure(figsize=(10, 8))
             corr = self.df[self.numeric_columns].corr()
-            sns.heatmap(corr, annot=True, cmap="coolwarm", center=0,
-                        square=True, linewidths=0.5, cbar_kws={"shrink": .8})
+            sns.heatmap(corr, annot=True, cmap='coolwarm', center=0, square=True, linewidths=0.5, cbar_kws={"shrink": .8})
             plt.title("Correlation Heatmap")
+            plt.xticks(rotation=45, ha='right')
             plt.tight_layout()
             plt.savefig(os.path.join(self.output_dir, "correlation_heatmap.png"), dpi=300)
             plt.close()
 
-        # Distribution of Most Variable Column
-        if len(self.numeric_columns) > 0:
-            plt.figure(figsize=(10, 6))
-            most_variable_col = self.df[self.numeric_columns].std().idxmax()
-            sns.histplot(self.df[most_variable_col], kde=True)
-            plt.title(f"Distribution of {most_variable_col}")
-            plt.xlabel(most_variable_col)
-            plt.ylabel("Frequency")
-            plt.tight_layout()
-            plt.savefig(os.path.join(self.output_dir, f"{most_variable_col}_distribution.png"), dpi=300)
-            plt.close()
+        # Time Series Analysis
+        if self.datetime_columns:
+            for col in self.datetime_columns:
+                plt.figure(figsize=(10, 6))
+                time_series = self.df.set_index(col).sort_index()
+                time_series_numeric = time_series[self.numeric_columns]
+                time_series_numeric.plot(ax=plt.gca(), legend=True)
+                plt.title(f"Time Series Analysis ({col})")
+                plt.xlabel("Date")
+                plt.ylabel("Values")
+                plt.legend(loc='best')
+                plt.tight_layout()
+                plt.savefig(os.path.join(self.output_dir, f"time_series_{col}.png"), dpi=300)
+                plt.close()
 
-        # Clustering Visualization
-        if len(self.numeric_columns) > 1:
-            plt.figure(figsize=(10, 8))
-            scaler = StandardScaler()
-            scaled_data = scaler.fit_transform(self.df[self.numeric_columns].dropna())
-            pca = PCA(n_components=2)
-            pca_data = pca.fit_transform(scaled_data)
+        # Cluster Analysis
+        if self.numeric_columns and len(self.numeric_columns) > 1:
             kmeans = KMeans(n_clusters=3, random_state=42)
-            kmeans_labels = kmeans.fit_predict(scaled_data)
+            scaled_data = StandardScaler().fit_transform(self.df[self.numeric_columns].dropna())
+            clusters = kmeans.fit_predict(scaled_data)
 
-            scatter = plt.scatter(pca_data[:, 0], pca_data[:, 1], c=kmeans_labels,
-                                  cmap='viridis', alpha=0.7)
-            plt.title("Clustering Visualization (PCA)")
-            plt.xlabel("First Principal Component")
-            plt.ylabel("Second Principal Component")
-            plt.colorbar(scatter)
+            plt.figure(figsize=(10, 8))
+            plt.scatter(scaled_data[:, 0], scaled_data[:, 1], c=clusters, cmap='viridis', alpha=0.6)
+            plt.scatter(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 1], s=200, c='red', marker='X')
+            plt.title("Cluster Analysis")
+            plt.xlabel("Feature 1 (Scaled)")
+            plt.ylabel("Feature 2 (Scaled)")
             plt.tight_layout()
-            plt.savefig(os.path.join(self.output_dir, "clustering_visualization.png"), dpi=300)
+            plt.savefig(os.path.join(self.output_dir, "cluster_analysis.png"), dpi=300)
             plt.close()
 
-    def generate_narrative(self, analysis):
+        # PCA Variance Plot
+        if "dimensionality_reduction" in analysis and analysis["dimensionality_reduction"]:
+            plt.figure(figsize=(10, 6))
+            plt.plot(np.cumsum(analysis["dimensionality_reduction"]["explained_variance_ratio"]))
+            plt.title("Cumulative Explained Variance")
+            plt.xlabel("Number of Components")
+            plt.ylabel("Cumulative Explained Variance")
+            plt.tight_layout()
+            plt.savefig(os.path.join(self.output_dir, "pca_variance.png"), dpi=300)
+            plt.close()
+
+
+    def ask_llm_for_insights(self, analysis):
         """
-        Generate a narrative using LLM based on the analysis.
+        Use LLM to generate insights based on comprehensive analysis.
         """
+        # Prepare a detailed prompt for LLM
         prompt = f"""
-        You are a data science storyteller. Analyze this dataset summary:
+        Analyze the following dataset characteristics:
 
         Dataset Overview:
-        - Columns: {list(self.df.columns)}
-        - Shape: {self.df.shape}
-        - Numeric Columns: {list(self.numeric_columns)}
-        - Categorical Columns: {list(self.categorical_columns)}
+        - Total Rows: {analysis['dataset_overview']['total_rows']}
+        - Total Columns: {analysis['dataset_overview']['total_columns']}
+        - Column Types: {json.dumps({k: str(v) for k, v in analysis['dataset_overview']['column_types'].items()})}
 
-        Key Analysis Insights:
-        - Missing Values: {analysis.get('missing_values', {})}
-        - Outliers: {analysis.get('outliers', {})}
-        - Feature Importance: {analysis.get('feature_importance', {})}
-        - Distributions: {analysis.get('distributions', {})}
-        - Clustering: {analysis.get('clustering', {})}
+        Missing Values:
+        {json.dumps(analysis['missing_values'], indent=2)}
 
-        Write a compelling narrative that:
-        1. Describes the dataset
-        2. Highlights key findings
-        3. Provides actionable insights
-        4. Suggests potential further analysis or business implications
+        Numeric Columns Statistics:
+        {json.dumps(analysis['basic_statistics'].get('numeric', {}), indent=2)}
 
-        Use markdown formatting. Be creative and engaging!
+        Correlation Insights:
+        {json.dumps(analysis.get('correlation_analysis', {}), indent=2)}
+
+        Outlier Detection:
+        {json.dumps(analysis.get('outlier_detection', {}), indent=2)}
+
+        Provide:
+        1. Key dataset insights
+        2. Potential data quality issues
+        3. Recommended preprocessing steps
+        4. Potential advanced analysis techniques
+        5. Business or research implications
         """
 
-        headers = {
-            "Authorization": f"Bearer {os.environ['AIPROXY_TOKEN']}",
-            "Content-Type": "application/json"
-        }
-
-        payload = {
-            "model": "gpt-4o-mini",
-            "messages": [
-                {"role": "system", "content": "You are a data science storyteller creating a narrative about a dataset."},
-                {"role": "user", "content": prompt}
-            ],
-            "max_tokens": 1000
-        }
-
         try:
+            headers = {
+                "Authorization": f"Bearer {os.environ.get('AIPROXY_TOKEN', '')}",
+                "Content-Type": "application/json"
+            }
+
+            payload = {
+                "model": "gpt-4o-mini",
+                "messages": [
+                    {"role": "system", "content": "You are an expert data science story teller providing comprehensive dataset insights."},
+                    {"role": "user", "content": prompt}
+                ],
+                "max_tokens": 500
+            }
+
             response = requests.post(
-                "https://aiproxy.sanand.workers.dev/openai/v1/chat/completions",
-                headers=headers,
+                "https://aiproxy.sanand.workers.dev/openai/v1/chat/completions", 
+                headers=headers, 
                 json=payload
             )
-            response.raise_for_status()
-            narrative = response.json()['choices'][0]['message']['content']
-            return narrative
+            insights = response.json()['choices'][0]['message']['content']
+            return insights
         except Exception as e:
-            return f"Error generating narrative: {e}"
+            return f"LLM insight generation failed: {e}"
 
-def generate_visualizations(self, analysis):
+def main():
     """
-    Generate comprehensive data visualizations as separate PNG files.
-    
-    Args:
-        analysis (dict): Analysis results to inform visualization
+    Main function to run comprehensive data analysis.
     """
-    # Correlation Heatmap
-    if len(self.numeric_columns) > 1:
-        plt.figure(figsize=(10, 8))
-        corr = self.df[self.numeric_columns].corr()
-        sns.heatmap(corr, annot=True, cmap="coolwarm", center=0, 
-                    square=True, linewidths=0.5, cbar_kws={"shrink": .8})
-        plt.title("Correlation Heatmap")
-        plt.tight_layout()
-        plt.savefig(os.path.join(self.output_dir, "correlation_heatmap.png"), dpi=300)
-        plt.close()
+    if len(sys.argv) != 2 or not sys.argv[1].lower().endswith('.csv'):
+        print("Usage: python script.py <dataset.csv>")
+        sys.exit(1)
 
-    # Distribution of Most Variable Column
-    if len(self.numeric_columns) > 0:
-        plt.figure(figsize=(10, 6))
-        most_variable_col = self.df[self.numeric_columns].std().idxmax()
-        sns.histplot(self.df[most_variable_col], kde=True)
-        plt.title(f"Distribution of {most_variable_col}")
-        plt.xlabel(most_variable_col)
-        plt.ylabel("Frequency")
-        plt.tight_layout()
-        plt.savefig(os.path.join(self.output_dir, f"{most_variable_col}_distribution.png"), dpi=300)
-        plt.close()
-
-    # Clustering Visualization
-    if len(self.numeric_columns) > 1:
-        plt.figure(figsize=(10, 8))
-        scaler = StandardScaler()
-        scaled_data = scaler.fit_transform(self.df[self.numeric_columns].dropna())
-        pca = PCA(n_components=2)
-        pca_data = pca.fit_transform(scaled_data)
-        kmeans = KMeans(n_clusters=3, random_state=42)
-        kmeans_labels = kmeans.fit_predict(scaled_data)
-        
-        scatter = plt.scatter(pca_data[:, 0], pca_data[:, 1], c=kmeans_labels, 
-                              cmap='viridis', alpha=0.7)
-        plt.title("Clustering Visualization (PCA)")
-        plt.xlabel("First Principal Component")
-        plt.ylabel("Second Principal Component")
-        plt.colorbar(scatter)
-        plt.tight_layout()
-        plt.savefig(os.path.join(self.output_dir, "clustering_visualization.png"), dpi=300)
-        plt.close()
-    
-def generate_narrative(self, analysis):
-    """
-    Generate a narrative using LLM based on the analysis.
-    
-    Args:
-        analysis (dict): Analysis results to craft narrative
-    
-    Returns:
-        str: Generated narrative
-    """
-    # Prepare a compact, informative prompt
-    prompt = f"""
-    You are a data science storyteller. Analyze this dataset summary:
-
-    Dataset Overview:
-    - Columns: {list(self.df.columns)}
-    - Shape: {self.df.shape}
-    - Numeric Columns: {list(self.numeric_columns)}
-    - Categorical Columns: {list(self.categorical_columns)}
-
-    Key Analysis Insights:
-    - Missing Values: {analysis.get('missing_values', {})}
-    - Outliers: {analysis.get('outliers', {})}
-    - Feature Importance: {analysis.get('feature_importance', {})}
-    - Distributions: {analysis.get('distributions', {})}
-    - Clustering: {analysis.get('clustering', {})}
-
-    Write a compelling narrative that:
-    1. Describes the dataset
-    2. Highlights key findings
-    3. Provides actionable insights
-    4. Suggests potential further analysis or business implications
-    
-    Use markdown formatting. Be creative and engaging!
-    """
-
-    headers = {
-        "Authorization": f"Bearer {os.environ['AIPROXY_TOKEN']}",
-        "Content-Type": "application/json"
-    }
-
-    payload = {
-        "model": "gpt-4o-mini",
-        "messages": [
-            {"role": "system", "content": "You are a data science storyteller creating a narrative about a dataset."},
-            {"role": "user", "content": prompt}
-        ],
-        "max_tokens": 1000
-    }
-
-    try:
-        response = requests.post(
-            "https://aiproxy.sanand.workers.dev/openai/v1/chat/completions", 
-            headers=headers, 
-            json=payload
-        )
-        response.raise_for_status()
-        narrative = response.json()['choices'][0]['message']['content']
-        
-        # Append visualization description
-        most_variable_col = self.df[self.numeric_columns].std().idxmax()
-        narrative += "\n\n## Visualizations\n"
-        narrative += f"![Correlation Heatmap](correlation_heatmap.png)\n"
-        narrative += f"![{most_variable_col} Distribution]({most_variable_col}_distribution.png)\n"
-        narrative += f"![Clustering Visualization](clustering_visualization.png)\n\n"
-    
-        return narrative
-    except Exception as e:
-        return f"Error generating narrative: {e}"
-
-def analyze_and_generate_output(file_path):
-    base_name = os.path.splitext(os.path.basename(file_path))[0]
-    output_dir = os.path.join(".", base_name)
+    file_path = sys.argv[1]
+    output_dir = os.path.splitext(os.path.basename(file_path))[0]
     os.makedirs(output_dir, exist_ok=True)
 
-    # Set up the analyzer
-    analyzer = DataAnalyzer(file_path, output_dir)
+    # Initialize analyzer
+    analyzer = AdvancedDataAnalyzer(file_path, output_dir)
     
-    # Perform analysis
-    analysis = analyzer.perform_advanced_analysis()
+    # Perform comprehensive analysis
+    analysis = analyzer.perform_comprehensive_analysis()
     
     # Generate visualizations
     analyzer.generate_visualizations(analysis)
     
-    # Generate narrative
-    narrative = analyzer.generate_narrative(analysis)
+    # Get LLM insights
+    llm_insights = analyzer.ask_llm_for_insights(analysis)
     
-    # Write narrative to README
+    # Write analysis and LLM insights
     with open(os.path.join(output_dir, "README.md"), "w") as f:
-        f.write(narrative)
+        f.write("# Comprehensive Data Analysis Report\n\n")
+        f.write("## Dataset Overview\n")
+        f.write(json.dumps(analysis['dataset_overview'], indent=2))
+        f.write("\n\n## LLM Insights\n")
+        f.write(llm_insights)
 
-    return output_dir
-
-def main():
-    """Entry point for the script."""
-    if len(sys.argv) != 2:
-        print("Usage: uv run autolysis.py <dataset.csv>")
-        sys.exit(1)
-
-    file_path = sys.argv[1]
-
-    if os.path.exists(file_path):
-        output_dir = analyze_and_generate_output(file_path)
-        print(f"Analysis completed. Results saved in directory: {output_dir}")
-    else:
-        print(f"File {file_path} not found!")
+    print(f"Analysis complete. Report saved in {output_dir}/README.md")
 
 if __name__ == "__main__":
     main()
