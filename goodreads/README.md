@@ -1,61 +1,36 @@
-# Comprehensive Data Analysis Report
+```markdown
+# Regression Analysis of Goodreads Data
 
-## Dataset Overview
-{
-  "total_rows": 10000,
-  "total_columns": 23,
-  "column_types": {
-    "book_id": "int64",
-    "goodreads_book_id": "int64",
-    "best_book_id": "int64",
-    "work_id": "int64",
-    "books_count": "int64",
-    "isbn": "object",
-    "isbn13": "float64",
-    "authors": "object",
-    "original_publication_year": "float64",
-    "original_title": "object",
-    "title": "object",
-    "language_code": "object",
-    "average_rating": "float64",
-    "ratings_count": "int64",
-    "work_ratings_count": "int64",
-    "work_text_reviews_count": "int64",
-    "ratings_1": "int64",
-    "ratings_2": "int64",
-    "ratings_3": "int64",
-    "ratings_4": "int64",
-    "ratings_5": "int64",
-    "image_url": "object",
-    "small_image_url": "object"
-  }
-}
+In our latest exploration of the Goodreads dataset, we've conducted a regression analysis to understand the factors influencing the average book ratings. This analysis dives deep into the relationships between various features such as the count of books, publication year, ratings, and reviews, ultimately aiming to predict the `average_rating`.
 
-## LLM Insights
-### Key Dataset Insights
+## Key Findings from the Analysis
 
-1. **Size and Structure**: The dataset consists of 10,000 rows and 23 columns, indicating a substantial volume of records. The dataset appears to be well-structured with a mix of identifiers (e.g., `book_id`, `goodreads_book_id`), categorical variables (`authors`, `original_title`, `title`, `language_code`), and various numeric ratings.
+- **Model Performance**:
+  - **R² Score**: A mere **5.06%** suggests that our model explains only a small portion of the variance in average ratings. This indicates a weak predictive power.
+  - **Mean Absolute Error (MAE)**: **0.179** - On average, our predictions deviate from the actual ratings by this margin, hinting at some room for improvement.
+  - **Root Mean Square Error (RMSE)**: **0.241** - This metric further confirms the variability in our predictions.
 
-2. **Author Diversity**: There seems to be a rich variety of authors based on the `authors` column, though additional analysis would reveal the degree of overlap and distribution of book counts per author.
+- **Coefficients Insights**:
+  - The coefficients reveal interesting relationships with the features. For instance, the negative coefficient for `ratings_3` and `ratings_5` suggests that as these ratings increase, they tend to have a diminished impact on the average rating prediction.
 
-3. **Publication Year Trends**: The `original_publication_year` has a broad range from -1750 to 2017, suggesting that it includes historical texts. However, the mean year (1981) and various percentiles indicate several books published more recently.
+- **Intercept**: The intercept of approximately **4.00** implies that when all features are at zero, the predicted average rating starts at this baseline.
 
-4. **Ratings and Popularity**: 
-   - The `average_rating` averages around 4.00 with a small standard deviation, suggesting that most books are viewed favorably.
-   - `ratings_count` shows an average of about 54,001 and a large maximum (4,780,653), indicating that some books are significantly more popular than others. 
+## Visual Insights: Actual vs Predicted Ratings
 
-5. **Rating Distribution**: The distribution of ratings (1-5 stars) shows a trend towards higher ratings, indicating possibly that either trends favor more positive ratings or a selection bias in favor of higher-rated books.
+![Actual vs Predicted Ratings](chart_2.png)
 
-### Potential Data Quality Issues
+### Chart Analysis Summary
 
-1. **Potential Incorrect Year Values**: The `original_publication_year` column has a minimum value of -1750, which is likely erroneous (considering modern publishing dates). This could skew any analysis involving publication year.
+1. **Overall Trend**: The linear relationship indicated by the red line shows a positive correlation. As actual ratings increase, so do the predicted values.
+   
+2. **Distribution of Points**: Most points cluster around lower predicted values (3 to 4.5), suggesting the model's struggle with higher actual ratings.
+   
+3. **Line of Equality**: The dashed line \(y = x\) shows the ideal scenario of perfect predictions. Points above this line indicate underpredictions, while those below indicate overpredictions.
+   
+4. **Prediction Errors**: The spread of points, particularly in lower ranges, indicates significant prediction errors for lower actual values.
+   
+5. **Possible Model Limitations**: The loose grouping around the red line suggests that the model may not fully capture the underlying relationship, indicating potential missing factors.
 
-2. **ISBN Column Types**: The `isbn` column is defined as `object` while `isbn13` is `float64`, which may present format inconsistencies. Typically, ISBNs are string values and should be treated as such.
+## Implications of Our Findings
 
-3. **Lack of Correlation Insights**: The correlation insights are empty, indicating that there may not be apparent relationships among numerical features. This could also suggest issues with capturing the dataset's true nature or correlations.
-
-4. **Outlier Detection**: The absence of outlier detection results means there may be extreme values in `ratings_count`, `work_ratings_count`, or `work_text_reviews_count` that could distort analysis without being identified.
-
-### Recommended Preprocessing Steps
-
-1
+The analysis reveals a **moderate positive correlation** between actual and predicted values, yet the model's performance
