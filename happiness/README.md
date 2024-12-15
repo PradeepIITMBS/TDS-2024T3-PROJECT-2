@@ -1,29 +1,39 @@
-```markdown
-# Unraveling Happiness: A Dive into Anomalies
+# Dataset Analysis
 
-In an intriguing analysis of the happiness dataset (`happiness.csv`), we embarked on a quest to identify anomalies that could reveal unique insights about the factors influencing happiness scores. Utilizing an outlier detection function, we meticulously sifted through 2,363 samples, culminating in the discovery of **267 anomalies**—a surprising revelation that begs exploration.
+Based on the provided dataset summary, we can uncover several key insights, trends, and actionable recommendations:
 
-## Insights from the Abyss
+### Key Findings:
 
-The sheer number of detected anomalies suggests that a significant portion of the data diverges from the norm. But what does this mean? These outliers could represent:
+1. **Missing Values**: 
+   - The dataset has missing values in several columns, notably:
+     - **Log GDP per capita**: 28 entries missing.
+     - **Social Support**: 13 entries missing.
+     - **Healthy Life Expectancy at Birth**: 63 entries missing.
+     - **Freedom to Make Life Choices**: 36 entries missing.
+     - **Generosity**: 81 entries missing.
+     - **Perceptions of Corruption**: 125 entries missing.
+     - **Positive Affect**: 24 entries missing.
+     - **Negative Affect**: 16 entries missing.
+   - The high volume of missing values in "Generosity," "Perceptions of Corruption," and "Healthy Life Expectancy" suggests potential issues in data collection or reporting from specific countries or years.
 
-- **Extreme Happiness or Unhappiness**: Are there individuals or regions experiencing happiness levels that are exceptionally high or low? 
-- **Cultural Anomalies**: Perhaps certain cultures or demographics exhibit happiness in ways that starkly contrast with the majority.
-- **Data Quality Issues**: Some anomalies might be the result of errors in data collection or reporting.
+2. **Key Variables Influencing Life Quality**:
+   - **Life Ladder**: This variable is a proxy for individual well-being and is likely influenced by several key factors:
+     - **Log GDP per Capita**: A higher GDP per capita typically correlates with improved life satisfaction.
+     - **Social Support**: Indicates the network and resources available to individuals, impacting their overall happiness.
+     - **Healthy Life Expectancy at Birth**: A significant determinant of life quality; countries with higher healthy life expectancy often report higher life satisfaction.
 
-## Unearthing the Gems of Insight
+3. **Generosity and Corruption**:
+   - The variability in **Generosity** and **Perceptions of Corruption** among countries can illuminate societal values and governance quality. Higher corruption perception often correlates inversely with life satisfaction, indicating systemic issues affecting residents' mental well-being.
 
-Diving deeper into these anomalies, we could speculate that they embody stories waiting to be told. For instance, individuals with drastically high happiness scores may have access to unique resources or support systems, while those on the lower end might face challenges that warrant further investigation. 
+4. **Emotional Well-Being**:
+   - **Positive Affect** and **Negative Affect** are essential emotional measures. Understanding the balance between these two can provide insights into citizens� overall mental health. The dataset indicates a disparity in these measures across different countries.
 
-Imagine a world where every outlier is a beacon of insight—a chance to understand what makes some people flourish against the odds while others struggle. The implications are vast; they could inform policy decisions, mental health interventions, or community programs tailored to uplift the less fortunate.
+### Trends:
 
-## The Ripple Effect of Discoveries
+- **Regional Differences**: Expect to see significant variations in life satisfaction across different regions. Wealthier countries or those with stable governance tend to report higher life ladder scores, while developing nations may grapple with lower scores stemming from economic instability and corruption.
+  
+- **Temporal Analysis**: If the dataset spans multiple years, analyzing trends over time in variables like GDP per capita and social support could illustrate the impact
 
-These findings propel us into a realm of possibilities. By addressing the anomalies, we can:
-
-- Craft targeted interventions that enhance well-being.
-- Foster a deeper understanding of global happiness trends.
-- Inspire future research to explore the underlying causes of these outliers.
-
-So, what lies beyond the numbers? Each anomaly is not just a statistical oddity but a narrative yearning to be unveiled. Will you join us in this exploration of happiness and its many forms? The journey of discovery is just beginning!
-```
+## Visualizations
+![correlation_heatmap.png](correlation_heatmap.png)
+![kmeans_clustering.png](kmeans_clustering.png)

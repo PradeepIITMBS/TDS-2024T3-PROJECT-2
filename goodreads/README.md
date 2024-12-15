@@ -1,36 +1,43 @@
-```markdown
-# Regression Analysis of Goodreads Data
+# Dataset Analysis
 
-In our latest exploration of the Goodreads dataset, we've conducted a regression analysis to understand the factors influencing the average book ratings. This analysis dives deep into the relationships between various features such as the count of books, publication year, ratings, and reviews, ultimately aiming to predict the `average_rating`.
+### Dataset Overview
 
-## Key Findings from the Analysis
+The dataset appears to be a collection of books, featuring various attributes such as IDs, authors, publication years, ratings, and more. This data can provide meaningful insights into reader preferences, trends in book popularity, and overall sentiment regarding different literary works.
 
-- **Model Performance**:
-  - **R² Score**: A mere **5.06%** suggests that our model explains only a small portion of the variance in average ratings. This indicates a weak predictive power.
-  - **Mean Absolute Error (MAE)**: **0.179** - On average, our predictions deviate from the actual ratings by this margin, hinting at some room for improvement.
-  - **Root Mean Square Error (RMSE)**: **0.241** - This metric further confirms the variability in our predictions.
+### Key Findings
 
-- **Coefficients Insights**:
-  - The coefficients reveal interesting relationships with the features. For instance, the negative coefficient for `ratings_3` and `ratings_5` suggests that as these ratings increase, they tend to have a diminished impact on the average rating prediction.
+1. **Missing Values**:
+   - Several fields contain missing values. Notable among them are:
+     - `isbn` (700 missing),
+     - `isbn13` (585 missing),
+     - `original_publication_year` (21 missing),
+     - `original_title` (585 missing),
+     - `language_code` (1084 missing).
+   - This may indicate issues with data completeness which could affect analyses related to book identity and publication trends.
 
-- **Intercept**: The intercept of approximately **4.00** implies that when all features are at zero, the predicted average rating starts at this baseline.
+2. **Ratings Distribution**:
+   - All ratings fields (from 1 to 5) contain values, suggesting that while the book ratings themselves are present, the overall volume of ratings and reviews might be unevenly distributed across books. Further analysis, such as the average rating per book and the distribution of the ratings counts, would be beneficial.
 
-## Visual Insights: Actual vs Predicted Ratings
+3. **Publication Trends**:
+   - The presence of missing values in the `original_publication_year` field may lead to gaps in identifying trends over time, such as which genres or authors have gained popularity in recent years.
+   - Analyzing the years in which books were published could uncover resurgence in certain genres or notable decades for publication.
 
-![Actual vs Predicted Ratings](chart_2.png)
+4. **Language Diversity**:
+   - The `language_code` field has a significant number of missing entries (1084). Recognizing the primary languages represented could inform about the global reach of different works and highlight areas for potential expansion in non-English markets.
 
-### Chart Analysis Summary
+5. **Rating Analysis**:
+   - Although the dataset includes average ratings, exploring how these ratings correlate with ratings counts could provide insight into what drives higher ratings.
+   - Identifying books with high ratings but low counts may signify hidden gems that lack visibility.
 
-1. **Overall Trend**: The linear relationship indicated by the red line shows a positive correlation. As actual ratings increase, so do the predicted values.
-   
-2. **Distribution of Points**: Most points cluster around lower predicted values (3 to 4.5), suggesting the model's struggle with higher actual ratings.
-   
-3. **Line of Equality**: The dashed line \(y = x\) shows the ideal scenario of perfect predictions. Points above this line indicate underpredictions, while those below indicate overpredictions.
-   
-4. **Prediction Errors**: The spread of points, particularly in lower ranges, indicates significant prediction errors for lower actual values.
-   
-5. **Possible Model Limitations**: The loose grouping around the red line suggests that the model may not fully capture the underlying relationship, indicating potential missing factors.
+### Trends
 
-## Implications of Our Findings
+- **Popularity Indicators**: As more people engage with books across platforms like Goodreads, books with high ratings and reviews could indicate not just popularity but also reader satisfaction. Analyzing these factors could help identify trends in reader preferences.
+- **Time-bound Sensitivity**: An understanding of the `original_publication_year` in combination with average ratings can reveal whether newer books are favorably received or if classics continue to dominate reader interests.
 
-The analysis reveals a **moderate positive correlation** between actual and predicted values, yet the model's performance
+### Actionable Recommendations
+
+1. **Data Cleaning and Enrichment**
+
+## Visualizations
+![correlation_heatmap.png](correlation_heatmap.png)
+![kmeans_clustering.png](kmeans_clustering.png)
